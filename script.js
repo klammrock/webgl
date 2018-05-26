@@ -1,7 +1,9 @@
 var VSHADER_SRC = 
+    'attribute vec4 a_Position;\n' +
+    'attribute float a_PointSize;\n' +
     'void main() { \n' + 
-    '  gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n' +
-    '  gl_PointSize = 10.0;\n' +
+    '  gl_Position = a_Position;\n' +
+    '  gl_PointSize = a_PointSize;\n' +
     "}\n";
 
 var FSHADER_SRC = 
@@ -94,6 +96,22 @@ function main() {
         return;
     }
 
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    if (a_Position < 0) {
+        console.error("a_Position error");
+        return;
+    }
+
+    var a_PointSize = gl.getAttribLocation(gl.program, 'a_PointSize');
+    if (a_PointSize < 0) {
+        console.error("a_PointSize error");
+        return;
+    }
+
+    gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
+    gl.vertexAttrib1f(a_PointSize, 5.0);
+
+    // draw
     gl.clearColor(0.0, 0.0, 0.0, 0.2);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
