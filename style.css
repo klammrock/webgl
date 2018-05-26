@@ -1,0 +1,11 @@
+body {
+    background: black;
+    color: gray;
+}
+
+#cnv {
+    width: 400px;
+    height: 400px;
+    background: red;
+    border: 1px solid green;
+}
