@@ -7,8 +7,10 @@ var VSHADER_SRC =
     "}\n";
 
 var FSHADER_SRC = 
+    'precision mediump float;\n' +
+    'uniform vec4 u_FragColor;\n' +
     'void main() {\n' + 
-    '  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' +
+    '  gl_FragColor = u_FragColor;\n' +
     '}\n';
 
 // shaders
@@ -76,15 +78,39 @@ function loadShader(gl, type, source) {
     return shader;
 }
 
+// mouse
+
+function click(ev, gl, canvas, a_Position) {
+    var x = ev.clientX;
+    var y = ev.clientY;
+    var rect = ev.target.getBoundingClientRect() ;
+  
+    x = ((x - rect.left) - canvas.width/2)/(canvas.width/2);
+    y = (canvas.height/2 - (y - rect.top))/(canvas.height/2);
+    g_points.push(x); g_points.push(y);
+  
+    // draw
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  
+    var len = g_points.length;
+    for(var i = 0; i < len; i += 2) {
+      gl.vertexAttrib3f(a_Position, g_points[i], g_points[i+1], 0.0);
+
+      gl.drawArrays(gl.POINTS, 0, 1);
+    }
+}
+
+var g_points = [];
+
 // main
 
 function main() {
-    var cnv = document.getElementById("cnv");
+    var canvas = document.getElementById("cnv");
     // not css
-    cnv.setAttribute('width', '400');
-    cnv.setAttribute('height', '400');
+    canvas.setAttribute('width', '600');
+    canvas.setAttribute('height', '600');
 
-    var gl = cnv.getContext("webgl");
+    var gl = canvas.getContext("webgl");
 
     if (!gl) {
         console.error("getContext webgl error");
@@ -108,8 +134,20 @@ function main() {
         return;
     }
 
+    var u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
+    if (u_FragColor < 0) {
+        console.error("u_FragColor error");
+        return;
+    }
+
     gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
     gl.vertexAttrib1f(a_PointSize, 5.0);
+    gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
+
+    // mouse
+    canvas.onmousedown = function(ev) {
+        click(ev, gl, canvas, a_Position);
+    };
 
     // draw
     gl.clearColor(0.0, 0.0, 0.0, 0.2);

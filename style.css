@@ -3,8 +3,8 @@ body {
 }
 
 #cnv {
-    width: 500px;
-    height: 500px;
+    width: 600px;
+    height: 600px;
     /* background: blue; */
     border: 1px solid white;
 }
