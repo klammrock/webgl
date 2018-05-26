@@ -1,11 +1,10 @@
 body {
-    background: black;
-    color: gray;
+    background: gray;
 }
 
 #cnv {
-    width: 400px;
-    height: 400px;
-    background: red;
-    border: 1px solid green;
+    width: 500px;
+    height: 500px;
+    /* background: blue; */
+    border: 1px solid white;
 }
