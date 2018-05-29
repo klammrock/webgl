@@ -81,26 +81,93 @@ function loadShader(gl, type, source) {
 // mouse
 
 function click(ev, gl, canvas, a_Position) {
-    var x = ev.clientX;
-    var y = ev.clientY;
-    var rect = ev.target.getBoundingClientRect() ;
+    // var x = ev.clientX;
+    // var y = ev.clientY;
+    // var rect = ev.target.getBoundingClientRect() ;
   
-    x = ((x - rect.left) - canvas.width/2)/(canvas.width/2);
-    y = (canvas.height/2 - (y - rect.top))/(canvas.height/2);
-    g_points.push(x); g_points.push(y);
+    // x = ((x - rect.left) - canvas.width/2)/(canvas.width/2);
+    // y = (canvas.height/2 - (y - rect.top))/(canvas.height/2);
+    // g_points.push(x); g_points.push(y);
   
-    // draw
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    // // draw
+    // gl.clear(gl.COLOR_BUFFER_BIT);
   
-    var len = g_points.length;
-    for(var i = 0; i < len; i += 2) {
-      gl.vertexAttrib3f(a_Position, g_points[i], g_points[i+1], 0.0);
+    // var len = g_points.length;
+    // for(var i = 0; i < len; i += 2) {
+    //   gl.vertexAttrib3f(a_Position, g_points[i], g_points[i+1], 0.0);
 
-      gl.drawArrays(gl.POINTS, 0, 1);
+    //   gl.drawArrays(gl.POINTS, 0, 1);
+    // }
+
+    console.log(click_count++);
+
+    if (click_count == 2) {
+        var n = initVertexBuffers(gl);
+
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // POINTS LINE_STRIP LINE_LOOP LINES TRIANGLE_STRIP TRIANGLE_FAN TRIANGLES
+        //gl.drawArrays(gl.POINTS, 0, n);
+        gl.drawArrays(gl.TRIANGLES, 0, n);
+        // ! draw quad -> gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    } else if (click_count == 3) {
+        var n = reInitVertexBuffers(gl);
+
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.POINTS, 0, n);
     }
 }
 
 var g_points = [];
+
+// webgl buffer
+
+var click_count = 1;
+var vertexBufferGlobal = null;
+
+function initVertexBuffers(gl) {
+    var vertices = new Float32Array([
+        0.0, 0.5, -0.5, -0.5, 0.5, -0.5
+    ]);
+
+    var n = 3;
+
+    var vertexBuffer = gl.createBuffer();
+    if (!vertexBuffer) {
+        console.error("createBuffer error");
+        return;
+    }
+
+    vertexBufferGlobal = vertexBuffer;
+
+    // or ELEMENT_ARRAY_BUFFER
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    // STATIC_DRAW or DYNAMIC_DRAW or STREAM_DRAW
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    // TODO: error
+
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
+
+    gl.enableVertexAttribArray(a_Position);
+
+    return n;
+}
+
+function reInitVertexBuffers(gl) {
+    var vertices2 = new Float32Array([
+        0.3, 0.5, -0.5, -0.5, 0.5, -0.5, 0.0, 0.0
+    ]);
+    var n = 4;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferGlobal);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices2, gl.STATIC_DRAW);
+    // can't pass more date then offset+length, only change previous w/ gl.STATIC_DRAW !!!
+    //gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertices2);
+
+    return n;
+}
 
 // main
 
