@@ -1,8 +1,10 @@
 var VSHADER_SRC = 
     'attribute vec4 a_Position;\n' +
     'attribute float a_PointSize;\n' +
+    // uniform -> one for all
+    'uniform mat4 u_xformMatrix;\n' +
     'void main() { \n' + 
-    '  gl_Position = a_Position;\n' +
+    '  gl_Position = u_xformMatrix * a_Position;\n' +
     '  gl_PointSize = a_PointSize;\n' +
     "}\n";
 
@@ -140,9 +142,9 @@ function initVertexBuffers(gl) {
 
     vertexBufferGlobal = vertexBuffer;
 
-    // or ELEMENT_ARRAY_BUFFER
+    // ARRAY_BUFFER  ELEMENT_ARRAY_BUFFER
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    // STATIC_DRAW or DYNAMIC_DRAW or STREAM_DRAW
+    // STATIC_DRAW DYNAMIC_DRAW STREAM_DRAW
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
@@ -171,6 +173,8 @@ function reInitVertexBuffers(gl) {
 
 // main
 
+var rotate_angle = 30.0;
+
 function main() {
     var canvas = document.getElementById("cnv");
     // not css
@@ -189,6 +193,20 @@ function main() {
         return;
     }
 
+    // matrix
+    var rotate_angle_rad = rotate_angle * Math.PI / 180.0;
+    var rotate_angle_rad_sin = Math.sin(rotate_angle_rad);
+    var rotate_angle_rad_cos = Math.cos(rotate_angle_rad);
+
+    // follow by rows
+    var xformMatrix = new Float32Array([
+        rotate_angle_rad_cos, rotate_angle_rad_sin, 0.0, 0.0,
+        -rotate_angle_rad_sin, rotate_angle_rad_cos, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ]);
+
+    // shader params
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
     if (a_Position < 0) {
         console.error("a_Position error");
@@ -207,9 +225,16 @@ function main() {
         return;
     }
 
+    var u_xformMatrix = gl.getUniformLocation(gl.program, 'u_xformMatrix');
+    if (u_xformMatrix < 0) {
+        console.error("u_xformMatrix error");
+        return;
+    }
+
     gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
     gl.vertexAttrib1f(a_PointSize, 5.0);
     gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
+    gl.uniformMatrix4fv(u_xformMatrix, false, xformMatrix);
 
     // mouse
     canvas.onmousedown = function(ev) {
