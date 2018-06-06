@@ -173,7 +173,8 @@ function reInitVertexBuffers(gl) {
 
 // main
 
-var rotate_angle = 30.0;
+var ROTATE_ANGLE = 30.0;
+var TX = 0.3;
 
 function main() {
     var canvas = document.getElementById("cnv");
@@ -194,17 +195,12 @@ function main() {
     }
 
     // matrix
-    var rotate_angle_rad = rotate_angle * Math.PI / 180.0;
-    var rotate_angle_rad_sin = Math.sin(rotate_angle_rad);
-    var rotate_angle_rad_cos = Math.cos(rotate_angle_rad);
-
-    // follow by rows
-    var xformMatrix = new Float32Array([
-        rotate_angle_rad_cos, rotate_angle_rad_sin, 0.0, 0.0,
-        -rotate_angle_rad_sin, rotate_angle_rad_cos, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0
-    ]);
+    var xformMatrix = new Matrix4();
+    // reverse
+    xformMatrix.setRotate(ROTATE_ANGLE, 0, 0, 1);
+    xformMatrix.translate(TX, 0, 0);
+    // xformMatrix.setTranslate(TX, 0, 0);
+    // xformMatrix.rotate(ROTATE_ANGLE, 0, 0, 1);
 
     // shader params
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
@@ -234,7 +230,7 @@ function main() {
     gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
     gl.vertexAttrib1f(a_PointSize, 5.0);
     gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
-    gl.uniformMatrix4fv(u_xformMatrix, false, xformMatrix);
+    gl.uniformMatrix4fv(u_xformMatrix, false, xformMatrix.elements);
 
     // mouse
     canvas.onmousedown = function(ev) {
@@ -246,4 +242,24 @@ function main() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.drawArrays(gl.POINTS, 0, 1);
+}
+
+// anim
+
+var is_starting = false;
+
+function toggle_starting() {
+    is_starting = !is_starting;
+    document.getElementById("start_button").disabled = is_starting;
+    document.getElementById("stop_button").disabled = !is_starting;
+}
+
+function start() {
+    console.log("start");
+    toggle_starting();
+}
+
+function stop() {
+    console.log("stop");
+    toggle_starting();
 }
