@@ -2,9 +2,9 @@ var VSHADER_SRC =
     'attribute vec4 a_Position;\n' +
     'attribute float a_PointSize;\n' +
     // uniform -> one for all
-    'uniform mat4 u_xformMatrix;\n' +
+    'uniform mat4 u_ModelMatrix;\n' +
     'void main() { \n' + 
-    '  gl_Position = u_xformMatrix * a_Position;\n' +
+    '  gl_Position = u_ModelMatrix * a_Position;\n' +
     '  gl_PointSize = a_PointSize;\n' +
     "}\n";
 
@@ -174,13 +174,22 @@ function reInitVertexBuffers(gl) {
 // main
 
 var ROTATE_ANGLE = 30.0;
-var TX = 0.3;
+var TX = 0.0;
+var TY = 0.0;
+// deg by sec
+var ANGLE_STEP = 45.0;
+
+var CANVAS_W = 0.0;
+var CANVAS_H = 0.0;
 
 function main() {
     var canvas = document.getElementById("cnv");
     // not css
     canvas.setAttribute('width', '600');
     canvas.setAttribute('height', '600');
+
+    CANVAS_W = canvas.width.toFixed(2);
+    CANVAS_H = canvas.height.toFixed(2);
 
     var gl = canvas.getContext("webgl");
 
@@ -195,12 +204,14 @@ function main() {
     }
 
     // matrix
-    var xformMatrix = new Matrix4();
+    // var xformMatrix = new Matrix4();
     // reverse
-    xformMatrix.setRotate(ROTATE_ANGLE, 0, 0, 1);
-    xformMatrix.translate(TX, 0, 0);
+    // xformMatrix.setRotate(ROTATE_ANGLE, 0, 0, 1);
+    // xformMatrix.translate(TX, 0, 0);
     // xformMatrix.setTranslate(TX, 0, 0);
     // xformMatrix.rotate(ROTATE_ANGLE, 0, 0, 1);
+
+    var n = initVertexBuffers(gl);
 
     // shader params
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
@@ -221,27 +232,48 @@ function main() {
         return;
     }
 
-    var u_xformMatrix = gl.getUniformLocation(gl.program, 'u_xformMatrix');
-    if (u_xformMatrix < 0) {
-        console.error("u_xformMatrix error");
+    var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+    if (u_ModelMatrix < 0) {
+        console.error("u_ModelMatrix error");
         return;
     }
 
     gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
     gl.vertexAttrib1f(a_PointSize, 5.0);
     gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
-    gl.uniformMatrix4fv(u_xformMatrix, false, xformMatrix.elements);
+    //gl.uniformMatrix4fv(u_xformMatrix, false, xformMatrix.elements);
 
     // mouse
     canvas.onmousedown = function(ev) {
-        click(ev, gl, canvas, a_Position);
+        //click(ev, gl, canvas, a_Position);
+        mouseDown(ev);
     };
+    canvas.onmouseup = function(ev) {
+        mouseUp(ev);
+    };
+    canvas.onmousemove = function(ev) {
+        mouseMove(ev);
+    };
+
+
+    var currentAngle = 0.0;
+    var modelMatrix = new Matrix4();
 
     // draw
     gl.clearColor(0.0, 0.0, 0.0, 0.2);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    // gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.drawArrays(gl.POINTS, 0, 1);
+    // gl.drawArrays(gl.POINTS, 0, 1);
+
+    var tick = function() {
+        if (is_starting) {
+            currentAngle = animate(currentAngle);
+        }
+        draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix);
+        requestAnimationFrame(tick);
+    };
+
+    tick();
 }
 
 // anim
@@ -256,10 +288,69 @@ function toggle_starting() {
 
 function start() {
     console.log("start");
+    g_last = Date.now();
     toggle_starting();
 }
 
 function stop() {
     console.log("stop");
     toggle_starting();
+}
+
+var g_last = Date.now();
+
+function animate(angle) {
+    var now = Date.now();
+    var elapsed = now - g_last;
+    g_last = now;
+
+    var newAngle = angle + (ANGLE_STEP * elapsed / 1000.0);
+    return newAngle % 360;
+}
+
+function draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
+    //modelMatrix.setRotate(currentAngle, 0, 0, 1);
+
+    modelMatrix.setTranslate(TX, TY, 0.0);
+    modelMatrix.rotate(currentAngle, 0, 0, 1);
+
+    gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, n);
+}
+
+var is_drag = false;
+var drag_start_pos_x = 0;
+var drag_start_pos_y = 0;
+
+function mouseDown(ev) {
+    if (ev.which === 1) {
+        ev.target.setCapture();
+        console.log("mouseDown");
+        is_drag = true;
+        drag_start_pos_x = ev.clientX;
+        drag_start_pos_y = ev.clientY;
+    }
+}
+
+function mouseUp(ev) {
+    if (ev.which === 1) {
+        console.log("mouseUp");
+        is_drag = false;
+    }
+}
+
+function mouseMove(ev) {
+    if (is_drag) {
+        console.log("mouseMove");
+        var x = ev.clientX;
+        var y = ev.clientY;
+
+        // * 2 => -1.0..1.0
+        TX += (x - drag_start_pos_x) / CANVAS_W * 2;
+        TY += (drag_start_pos_y - y) / CANVAS_H * 2;
+
+        drag_start_pos_x = x;
+        drag_start_pos_y = y;
+    }
 }
