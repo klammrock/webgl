@@ -1,18 +1,41 @@
 var VSHADER_SRC = 
     'attribute vec4 a_Position;\n' +
-    'attribute float a_PointSize;\n' +
+    //'attribute float a_PointSize;\n' +
     // uniform -> one for all
-    'uniform mat4 u_ModelMatrix;\n' +
+    'uniform mat4 u_MVP;\n' +
+    'attribute vec4 a_Color;\n' +
+    // to FSHADER
+    'varying vec4 v_Color;\n' +
     'void main() { \n' + 
-    '  gl_Position = u_ModelMatrix * a_Position;\n' +
-    '  gl_PointSize = a_PointSize;\n' +
+    '  gl_Position = u_MVP * a_Position;\n' +
+    //'  gl_PointSize = a_PointSize;\n' +
+    '  v_Color = a_Color;\n' +
     "}\n";
 
 var FSHADER_SRC = 
     'precision mediump float;\n' +
-    'uniform vec4 u_FragColor;\n' +
+    //'uniform vec4 u_FragColor;\n' +
+    'varying vec4 v_Color;\n' +
     'void main() {\n' + 
-    '  gl_FragColor = u_FragColor;\n' +
+    '  gl_FragColor = v_Color;\n' +
+    '}\n';
+
+// axes
+var VAXESSHADER_SRC = 
+    'attribute vec4 a_Position;\n' +
+    'uniform mat4 u_MVP;\n' +
+    'attribute vec4 a_Color;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main() { \n' + 
+    '  gl_Position = u_MVP * a_Position;\n' +
+    '  v_Color = a_Color;\n' +
+    "}\n";
+
+var FAXESSHADER_SRC = 
+    'precision mediump float;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main() {\n' + 
+    '  gl_FragColor = v_Color;\n' +
     '}\n';
 
 // shaders
@@ -24,8 +47,21 @@ function initShaders(gl, vshader, fshader) {
       return false;
     }
   
-    gl.useProgram(program);
+    //gl.useProgram(program);
     gl.program = program;
+  
+    return true;
+}
+
+function initAxesShaders(gl, vshader, fshader) {
+    var program = createProgram(gl, vshader, fshader);
+    if (!program) {
+      console.log('Failed to create Axes program');
+      return false;
+    }
+  
+    //gl.useProgram(program);
+    gl.programAxes = program;
   
     return true;
 }
@@ -126,13 +162,21 @@ var g_points = [];
 
 var click_count = 1;
 var vertexBufferGlobal = null;
+var FSIZEGlobal = 0;
+
+var vertexBufferGlobalAxes = null;
+var FSIZEGlobalAxes = 0;
 
 function initVertexBuffers(gl) {
     var vertices = new Float32Array([
-        0.0, 0.5, -0.5, -0.5, 0.5, -0.5
+        // 0.0,  0.5, 1.0, 0.0, 0.0,
+        -0.5,  0.5, 0.0, 1.0, 0.0,
+        0.5,  0.5, 1.0, 0.0, 0.0,
+        -0.5, -0.5, 0.0, 0.0, 1.0,
+         0.5, -0.5, 1.0, 1.0, 1.0
     ]);
 
-    var n = 3;
+    var n = 4;
 
     var vertexBuffer = gl.createBuffer();
     if (!vertexBuffer) {
@@ -147,12 +191,65 @@ function initVertexBuffers(gl) {
     // STATIC_DRAW DYNAMIC_DRAW STREAM_DRAW
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
+    var FSIZE = vertices.BYTES_PER_ELEMENT;
+
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
     // TODO: error
-
-    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
-
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 5, 0);
     gl.enableVertexAttribArray(a_Position);
+
+    var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
+    // TODO: error
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 5, FSIZE * 2);
+    gl.enableVertexAttribArray(a_Color);
+
+    // gl.a_Position = a_Position;
+    // gl.a_Color = a_Color;
+
+    FSIZEGlobal = FSIZE;
+
+    return n;
+}
+
+function initAxesVertexBuffers(gl) {
+    var vertices = new Float32Array([
+        -1.0,  0.0,  0.0, 1.0, 0.0, 0.0,
+         1.0,  0.0,  0.0, 1.0, 0.0, 0.0,
+         0.0, -1.0,  0.0, 0.0, 1.0, 0.0,
+         0.0,  1.0,  0.0, 0.0, 1.0, 0.0,
+         0.0,  0.0, -1.0, 0.0, 0.0, 1.0,
+         0.0,  0.0,  1.0, 0.0, 0.0, 1.0
+    ]);
+
+    var n = 6;
+
+    var vertexBuffer = gl.createBuffer();
+    if (!vertexBuffer) {
+        console.error("createBuffer error");
+        return;
+    }
+
+    vertexBufferGlobalAxes = vertexBuffer;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    var FSIZE = vertices.BYTES_PER_ELEMENT;
+
+    var a_Position = gl.getAttribLocation(gl.programAxes, 'a_Position');
+    // TODO: error
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, FSIZE * 6, 0);
+    gl.enableVertexAttribArray(a_Position);
+
+    var a_Color = gl.getAttribLocation(gl.programAxes, 'a_Color');
+    // TODO: error
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 6, FSIZE * 3);
+    gl.enableVertexAttribArray(a_Color);
+
+    // gl.a_PositionAxes = a_Position;
+    // gl.a_ColorAxes = a_Color;
+
+    FSIZEGlobalAxes = FSIZE;
 
     return n;
 }
@@ -182,6 +279,8 @@ var ANGLE_STEP = 45.0;
 var CANVAS_W = 0.0;
 var CANVAS_H = 0.0;
 
+var viewMatrix = null;
+
 function main() {
     var canvas = document.getElementById("cnv");
     // not css
@@ -203,6 +302,15 @@ function main() {
         return;
     }
 
+    var n = initVertexBuffers(gl);
+
+    if (!initAxesShaders(gl, VAXESSHADER_SRC, FAXESSHADER_SRC)) {
+        console.error("initAxesShaders error");
+        return;
+    }
+
+    var nAxes = initAxesVertexBuffers(gl);
+
     // matrix
     // var xformMatrix = new Matrix4();
     // reverse
@@ -211,36 +319,43 @@ function main() {
     // xformMatrix.setTranslate(TX, 0, 0);
     // xformMatrix.rotate(ROTATE_ANGLE, 0, 0, 1);
 
-    var n = initVertexBuffers(gl);
+    
+    
 
     // shader params
-    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
-    if (a_Position < 0) {
-        console.error("a_Position error");
-        return;
-    }
+    // var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    // if (a_Position < 0) {
+    //     console.error("a_Position error");
+    //     return;
+    // }
 
-    var a_PointSize = gl.getAttribLocation(gl.program, 'a_PointSize');
-    if (a_PointSize < 0) {
-        console.error("a_PointSize error");
-        return;
-    }
+    // var a_PointSize = gl.getAttribLocation(gl.program, 'a_PointSize');
+    // if (a_PointSize < 0) {
+    //     console.error("a_PointSize error");
+    //     return;
+    // }
 
-    var u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
-    if (u_FragColor < 0) {
-        console.error("u_FragColor error");
-        return;
-    }
+    // var u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
+    // if (u_FragColor < 0) {
+    //     console.error("u_FragColor error");
+    //     return;
+    // }
 
-    var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
-    if (u_ModelMatrix < 0) {
-        console.error("u_ModelMatrix error");
-        return;
-    }
+    // var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+    // if (u_ModelMatrix < 0) {
+    //     console.error("u_ModelMatrix error");
+    //     return;
+    // }
 
-    gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
-    gl.vertexAttrib1f(a_PointSize, 5.0);
-    gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
+    // var a_Color = gl.getUniformLocation(gl.program, 'a_Color');
+    // if (a_Color < 0) {
+    //     console.error("a_Color error");
+    //     return;
+    // }
+
+    //gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
+    //gl.vertexAttrib1f(a_PointSize, 5.0);
+    //gl.uniform4f(u_FragColor, 1.0, 1.0, 0.0, 1.0);
     //gl.uniformMatrix4fv(u_xformMatrix, false, xformMatrix.elements);
 
     // mouse
@@ -255,9 +370,9 @@ function main() {
         mouseMove(ev);
     };
 
-
     var currentAngle = 0.0;
     var modelMatrix = new Matrix4();
+    viewMatrix = new Matrix4();
 
     // draw
     gl.clearColor(0.0, 0.0, 0.0, 0.2);
@@ -269,7 +384,7 @@ function main() {
         if (is_starting) {
             currentAngle = animate(currentAngle);
         }
-        draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix);
+        draw(gl, n, nAxes, currentAngle, modelMatrix, viewMatrix/*, u_ModelMatrix*/);
         requestAnimationFrame(tick);
     };
 
@@ -308,15 +423,62 @@ function animate(angle) {
     return newAngle % 360;
 }
 
-function draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
+function draw(gl, n, nAxes, currentAngle, modelMatrix, viewMatrix/*, u_ModelMatrix*/) {
     //modelMatrix.setRotate(currentAngle, 0, 0, 1);
 
     modelMatrix.setTranslate(TX, TY, 0.0);
     modelMatrix.rotate(currentAngle, 0, 0, 1);
 
-    gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLES, 0, n);
+    
+    drawAxes(gl, nAxes, viewMatrix);
+    drawFigure(gl, n, modelMatrix, viewMatrix);
+}
+
+function drawFigure(gl, n, modelMatrix, viewMatrix) {
+    gl.useProgram(gl.program);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferGlobal);
+
+    var mvp = new Matrix4();
+    mvp.set(modelMatrix);
+    mvp.multiply(viewMatrix);
+
+    var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_MVP');
+    gl.uniformMatrix4fv(u_ModelMatrix, false, mvp.elements);
+
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    // TODO: error
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZEGlobal * 5, 0);
+    gl.enableVertexAttribArray(a_Position);
+
+    var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
+    // TODO: error
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZEGlobal * 5, FSIZEGlobal * 2);
+    gl.enableVertexAttribArray(a_Color);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
+}
+
+function drawAxes(gl, nAxes, viewMatrix) {
+    gl.useProgram(gl.programAxes);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferGlobalAxes);
+
+    var u_ModelMatrix = gl.getUniformLocation(gl.programAxes, 'u_MVP');
+    gl.uniformMatrix4fv(u_ModelMatrix, false, viewMatrix.elements);
+
+    var a_Position = gl.getAttribLocation(gl.programAxes, 'a_Position');
+    // TODO: error
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, FSIZEGlobalAxes * 6, 0);
+    gl.enableVertexAttribArray(a_Position);
+
+    var a_Color = gl.getAttribLocation(gl.programAxes, 'a_Color');
+    // TODO: error
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZEGlobalAxes * 6, FSIZEGlobalAxes * 3);
+    gl.enableVertexAttribArray(a_Color);
+
+    gl.drawArrays(gl.LINES, 0, nAxes);
 }
 
 var is_drag = false;
@@ -325,7 +487,8 @@ var drag_start_pos_y = 0;
 
 function mouseDown(ev) {
     if (ev.which === 1) {
-        ev.target.setCapture();
+        // not work in chrome
+        if (ev.target.setCapture) ev.target.setCapture();
         console.log("mouseDown");
         is_drag = true;
         drag_start_pos_x = ev.clientX;
@@ -353,4 +516,54 @@ function mouseMove(ev) {
         drag_start_pos_x = x;
         drag_start_pos_y = y;
     }
+}
+
+// translate
+function translate_m_x_button() {
+    viewMatrix.translate(-0.1, 0.0, 0.0);
+}
+
+function translate_p_x_button() {
+    viewMatrix.translate(0.1, 0.0, 0.0);
+}
+
+function translate_m_y_button() {
+    viewMatrix.translate(0.0, -0.1, 0.0);
+}
+
+function translate_p_y_button() {
+    viewMatrix.translate(0.0, 0.1, 0.0);
+}
+
+function translate_m_z_button() {
+    viewMatrix.translate(0.0, 0.0, -0.1);
+}
+
+function translate_p_z_button() {
+    viewMatrix.translate(0.0, 0.0, 0.1);
+}
+
+// rotate
+function rotate_m_x_button() {
+    viewMatrix.rotate(-10, 1.0, 0.0, 0.0);
+}
+
+function rotate_p_x_button() {
+    viewMatrix.rotate(10, 1.0, 0.0, 0.0);
+}
+
+function rotate_m_y_button() {
+    viewMatrix.rotate(-10, 0.0, 1.0, 0.0);
+}
+
+function rotate_p_y_button() {
+    viewMatrix.rotate(10, 0.0, 1.0, 0.0);
+}
+
+function rotate_m_z_button() {
+    viewMatrix.rotate(-10, 0.0, 0.0, 1.0);
+}
+
+function rotate_p_z_button() {
+    viewMatrix.rotate(10, 0.0, 0.0, 1.0);
 }
