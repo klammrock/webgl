@@ -3,21 +3,33 @@ var VSHADER_SRC =
     //'attribute float a_PointSize;\n' +
     // uniform -> one for all
     'uniform mat4 u_MVP;\n' +
-    'attribute vec4 a_Color;\n' +
+    //'attribute vec4 a_Color;\n' +
     // to FSHADER
-    'varying vec4 v_Color;\n' +
+    //'varying vec4 v_Color;\n' +
+    'attribute vec2 a_TexCoord;\n' +
+    'varying vec2 v_TexCoord;\n' +
     'void main() { \n' + 
     '  gl_Position = u_MVP * a_Position;\n' +
     //'  gl_PointSize = a_PointSize;\n' +
-    '  v_Color = a_Color;\n' +
+    //'  v_Color = a_Color;\n' +
+    '  v_TexCoord = a_TexCoord;\n' +
     "}\n";
 
 var FSHADER_SRC = 
     'precision mediump float;\n' +
     //'uniform vec4 u_FragColor;\n' +
-    'varying vec4 v_Color;\n' +
+    //'varying vec4 v_Color;\n' +
+    'uniform sampler2D u_Sampler;\n' +
+    'varying vec2 v_TexCoord;\n' +
     'void main() {\n' + 
-    '  gl_FragColor = v_Color;\n' +
+    //'  gl_FragColor = v_Color;\n' +
+    //'  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' +
+    // gl_FragCoord gl_FragDepth
+    // .x .y .z .w == .r .g .b .a == .s .t .p .q
+    //'  gl_FragColor = vec4(gl_FragCoord.x / 600.0, 0.0, gl_FragCoord.y / 600.0, 1.0);\n' +
+    //'  gl_FragColor = vec4(gl_FragCoord.x / 600.0, 0.0, 0.0, 1.0);\n' +
+    //'  gl_FragColor = vec4(0.0, 0.0, gl_FragCoord.y / 600.0, 1.0);\n' +
+    '  gl_FragColor = texture2D(u_Sampler, v_TexCoord);\n' +
     '}\n';
 
 // axes
@@ -169,11 +181,16 @@ var FSIZEGlobalAxes = 0;
 
 function initVertexBuffers(gl) {
     var vertices = new Float32Array([
-        // 0.0,  0.5, 1.0, 0.0, 0.0,
-        -0.5,  0.5, 0.0, 1.0, 0.0,
-        0.5,  0.5, 1.0, 0.0, 0.0,
-        -0.5, -0.5, 0.0, 0.0, 1.0,
-         0.5, -0.5, 1.0, 1.0, 1.0
+        // // 0.0,  0.5, 1.0, 0.0, 0.0,
+        // -0.5,  0.5, 0.0, 1.0, 0.0,
+        // 0.5,  0.5, 1.0, 0.0, 0.0,
+        // -0.5, -0.5, 0.0, 0.0, 1.0,
+        //  0.5, -0.5, 1.0, 1.0, 1.0
+        // Vertex coordinates, texture coordinate
+        -0.5,  0.5,   0.0, 1.0,
+        -0.5, -0.5,   0.0, 0.0,
+        0.5,  0.5,   1.0, 1.0,
+        0.5, -0.5,   1.0, 0.0,
     ]);
 
     var n = 4;
@@ -195,13 +212,22 @@ function initVertexBuffers(gl) {
 
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
     // TODO: error
-    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 5, 0);
+    //gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 5, 0);
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 4, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
-    // TODO: error
-    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 5, FSIZE * 2);
-    gl.enableVertexAttribArray(a_Color);
+    // var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
+    // // TODO: error
+    // gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 5, FSIZE * 2);
+    // gl.enableVertexAttribArray(a_Color);
+
+    var a_TexCoord = gl.getAttribLocation(gl.program, 'a_TexCoord');
+    if (a_TexCoord < 0) {
+      console.log('Failed to get the storage location of a_TexCoord');
+      return -1;
+    }    
+    gl.vertexAttribPointer(a_TexCoord, 2, gl.FLOAT, false, FSIZE * 4, FSIZE * 2);
+    gl.enableVertexAttribArray(a_TexCoord);
 
     // gl.a_Position = a_Position;
     // gl.a_Color = a_Color;
@@ -373,6 +399,15 @@ function main() {
     var currentAngle = 0.0;
     var modelMatrix = new Matrix4();
     viewMatrix = new Matrix4();
+    //viewMatrix.setLookAt(0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+    //viewMatrix.setOrtho(-1.0, 1.0, -1.0, 1.0, 1.0, -1.0);
+    //viewMatrix.setFrustum(-1.0, 1.0, -1.0, 1.0, 1.1, 1.0);
+    //viewMatrix.setPerspective(60, 1, 100, 1);
+
+    if (!initTextures(gl, n)) {
+        console.error('initTextures error');
+        return;
+      }
 
     // draw
     gl.clearColor(0.0, 0.0, 0.0, 0.2);
@@ -449,13 +484,18 @@ function drawFigure(gl, n, modelMatrix, viewMatrix) {
 
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
     // TODO: error
-    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZEGlobal * 5, 0);
+    //gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZEGlobal * 5, 0);
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZEGlobal * 4, 0);
     gl.enableVertexAttribArray(a_Position);
 
-    var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
-    // TODO: error
-    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZEGlobal * 5, FSIZEGlobal * 2);
-    gl.enableVertexAttribArray(a_Color);
+    // var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
+    // // TODO: error
+    // gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZEGlobal * 5, FSIZEGlobal * 2);
+    // gl.enableVertexAttribArray(a_Color);
+
+    var a_TexCoord = gl.getAttribLocation(gl.program, 'a_TexCoord');
+    gl.vertexAttribPointer(a_TexCoord, 2, gl.FLOAT, false, FSIZEGlobal * 4, FSIZEGlobal * 2);
+    gl.enableVertexAttribArray(a_TexCoord);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
 }
@@ -567,3 +607,50 @@ function rotate_m_z_button() {
 function rotate_p_z_button() {
     viewMatrix.rotate(10, 0.0, 0.0, 1.0);
 }
+
+// texture
+function initTextures(gl, n) {
+    var texture = gl.createTexture();   // Create a texture object
+    if (!texture) {
+      console.log('Failed to create the texture object');
+      return false;
+    }
+
+    // Get the storage location of u_Sampler
+    var u_Sampler = gl.getUniformLocation(gl.program, 'u_Sampler');
+    if (!u_Sampler) {
+      console.log('Failed to get the storage location of u_Sampler');
+      return false;
+    }
+    var image = new Image();  // Create the image object
+    if (!image) {
+      console.log('Failed to create the image object');
+      return false;
+    }
+    // Register the event handler to be called on loading an image
+    image.onload = function(){ loadTexture(gl, n, texture, u_Sampler, image); };
+    // Tell the browser to load an image
+    image.src = 'res/sky.jpg';
+  
+    return true;
+}
+
+  function loadTexture(gl, n, texture, u_Sampler, image) {
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
+    // Enable texture unit0
+    gl.activeTexture(gl.TEXTURE0);
+    // Bind the texture object to the target
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+  
+    // Set the texture parameters
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    // Set the texture image
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+    
+    // Set the texture unit 0 to the sampler
+    gl.uniform1i(u_Sampler, 0);
+    
+    gl.clear(gl.COLOR_BUFFER_BIT);   // Clear <canvas>
+  
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, n); // Draw the rectangle
+  }
